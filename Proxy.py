@@ -129,7 +129,7 @@ while True:
         clientSocket.sendall(response)
         # ~~~~ END CODE INSERT ~~~~
 
-        # Optional Step 8A: Detect redirect (301 or 302)
+        # Step 8A: Detect redirect (301 or 302)
         try:
             headers = response.split(b'\r\n\r\n')[0].decode(errors='ignore')
             status_line = headers.split('\r\n')[0]
@@ -138,12 +138,27 @@ while True:
         except:
             print("Failed to detect redirect.")
 
-        cacheDir, file = os.path.split(cacheLocation)
-        if not os.path.exists(cacheDir):
-            os.makedirs(cacheDir)
-        with open(cacheLocation, 'wb') as cacheFile:
-            cacheFile.write(response)
-            print('Saved to cache.')
+        # Step 8B: Parse Cache-Control header
+        should_cache = True
+        try:
+            header_data = response.split(b'\r\n\r\n')[0].decode(errors='ignore')
+            for line in header_data.split('\r\n'):
+                if line.lower().startswith('cache-control:'):
+                    if 'max-age=0' in line.lower():
+                        print("Cache-Control: max-age=0 → Skipping cache")
+                        should_cache = False
+                    else:
+                        print(f"{line}")
+        except Exception as e:
+            print("Failed to parse Cache-Control:", e)
+
+        if should_cache:
+            cacheDir, file = os.path.split(cacheLocation)
+            if not os.path.exists(cacheDir):
+                os.makedirs(cacheDir)
+            with open(cacheLocation, 'wb') as cacheFile:
+                cacheFile.write(response)
+                print('Saved to cache.')
 
     except Exception as e:
         print("Failed to receive/send data:", e)
